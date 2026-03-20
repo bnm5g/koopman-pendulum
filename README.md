@@ -81,6 +81,7 @@ Finite-dimensional approximations may fail to preserve stability and long-term b
 Increasing observable dimension alone does not improve Koopman predictions unless a proper reconstruction mapping from lifted space to state space is learned.
 
 Using a single trajectory results in a rank-deficient approximation of the Koopman operator, preventing richer observable sets from improving predictive performance
+
 ---
 
 ## 🧪 How to Run

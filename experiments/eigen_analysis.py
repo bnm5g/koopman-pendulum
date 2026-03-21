@@ -1,16 +1,20 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from src.koopman import compute_koopman
+from src.koopman import compute_koopman_ridge
 from src.observables import richer_observables as basic_observables
-from experiments.compare_observables import generate_data
+from src.data import generate_trajectories, split_trajectories, trajectories_to_dataset
 
-X, Y = generate_data()
+np.random.seed(42)
+
+trajectories = generate_trajectories()
+train, test = split_trajectories(trajectories)
+X, Y = trajectories_to_dataset(train)
 
 Z = np.array([basic_observables(x) for x in X])
 Z_next = np.array([basic_observables(y) for y in Y])
 
-K = compute_koopman(Z, Z_next)
+K = compute_koopman_ridge(Z, Z_next)
 
 eigvals = np.linalg.eigvals(K)
 

@@ -4,27 +4,10 @@ import matplotlib.pyplot as plt
 from src.utils import compute_error, compute_rollout_error
 from src.dynamics import pendulum_step, linearized_step
 from src.observables import richer_observables as observables
-from src.koopman import lift_data, compute_koopman
+from src.koopman import lift_data, compute_koopman_ridge        
+from src.data import generate_trajectories, split_trajectories, trajectories_to_dataset
 
-# =========================
-# Data Generation
-# =========================
-def generate_data(n_trajectories=50, steps=200):
-    X, Y = [], []
-
-    for _ in range(n_trajectories):
-        theta = np.random.uniform(-np.pi, np.pi)
-        omega = np.random.uniform(-2, 2)
-        x = np.array([theta, omega])
-
-        for _ in range(steps):
-            x_next = pendulum_step(x)
-            X.append(x)
-            Y.append(x_next)
-            x = x_next
-
-    return np.array(X), np.array(Y)
-
+np.random.seed(42)
 
 # =========================
 # Simulation Functions
@@ -66,16 +49,16 @@ def predict_koopman(K, C, x0, steps=200):
 # =========================
 # Training Function
 # =========================
+
 def train_koopman(X_train, Y_train):
     Z = lift_data(X_train, observables)
     Z_next = lift_data(Y_train, observables)
 
-    K = compute_koopman(Z, Z_next)
+    K = compute_koopman_ridge(Z, Z_next)
 
-    # Reconstruction matrix
     C = X_train.T @ np.linalg.pinv(Z.T)
 
-    return K, C
+    return K.T, C
 
 
 # =========================
@@ -83,21 +66,35 @@ def train_koopman(X_train, Y_train):
 # =========================
 def run_experiment():
     # ---- Generate data ----
-    X, Y = generate_data()
-
-    # ---- Train/test split ----
-    split = int(0.8 * len(X))
-    X_train, X_test = X[:split], X[split:]
-    Y_train, Y_test = Y[:split], Y[split:]
+    trajectories = generate_trajectories()
+    np.random.shuffle(trajectories)
+    train_trajs, test_trajs = split_trajectories(trajectories)
+    X_train, Y_train = trajectories_to_dataset(train_trajs)
+    X_test, Y_test = trajectories_to_dataset(test_trajs)
 
     # ---- Train Koopman ----
     K, C = train_koopman(X_train, Y_train)
     print("Koopman matrix shape:", K.shape)
 
     # ---- Pick test initial condition ----
-    x0 = X_test[0]
+    errors = []
+    linear_errors = []
+
+    for traj in test_trajs[:20]:
+        x0 = traj[0]
+
+        true_traj = simulate_true(x0)
+        koopman_traj = predict_koopman(K, C, x0)
+        linear_traj = simulate_linear(x0)
+
+        errors.append(compute_error(true_traj, koopman_traj))
+        linear_errors.append(compute_error(true_traj, linear_traj))
+
+    print("Koopman avg error:", np.mean(errors))
+    print("Linear avg error:", np.mean(linear_errors))
 
     # ---- Simulate ----
+    x0 = test_trajs[0][0]
     true_traj = simulate_true(x0)
     koopman_traj = predict_koopman(K, C, x0)
     linear_traj = simulate_linear(x0)

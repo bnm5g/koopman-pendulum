@@ -1,9 +1,8 @@
 import numpy as np
 
-def pendulum_step(x, dt=0.01):
+def pendulum_step(x, dt=0.01, g=9.81, l=1.0):
     def f(x):
         theta, omega = x
-        g, l = 9.81, 1.0
         return np.array([omega, -(g/l)*np.sin(theta)])
 
     k1 = f(x)
